@@ -48,23 +48,23 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
   float pixArea;
   float pointArea=0.01;
 
-  for (j = 0; j < dim; j++)
-    for (i = 0; i < dim; i++) {
+  for (j = 0; j < dim; j++) // y
+    for (i = 0; i < dim; i++) { //x
       countArray[j * dim + i] = 0;
       minDistanceArray[j * dim + i] = NAN;
       if (((i - rmax) * (i - rmax) + (j - rmax) * (j - rmax)) <= (rmax * rmax)) {
         binArray[j * dim + i] = 255;
 		areaArray[j * dim + i] = 0;
-        outR[i][j] = 230;
-        outG[i][j] = 230;
-        outB[i][j] = 240;
+        outR[j][i] = 230;
+        outG[j][i] = 230;
+        outB[j][i] = 240;
       } else {
         countArray[j * dim + i] = NAN;
 		areaArray[j * dim + i] = NAN;
         binArray[j * dim + i] = 0;
-        outR[i][j] = 0;
-        outG[i][j] = 0;
-        outB[i][j] = 0;
+        outR[j][i] = 0;
+        outG[j][i] = 0;
+        outB[j][i] = 0;
       }
     }
 
@@ -92,17 +92,17 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
       for (i = 0; i < numVerts * 3; i += 3) {
         if (pos[i + 2] >= cameraPositon[2]) { // Keep only points above camera
           getPointHemiXY( & pos[i], cameraPositon, rmax, & px, & py, & dxyz);
-          countArray[px * dim + py] = countArray[px * dim + py] + 1;
+          countArray[py * dim + px] = countArray[py * dim + px] + 1;
 	  pixArea= 2*tan(M_PI/(4*rmax))*dxyz; // pointsize/(Pixelsize at distance)
 	  pixArea=pixArea*pixArea;
-	  areaArray[px * dim + py] = areaArray[px * dim + py] + pointArea/pixArea;
-          if (dxyz < minDistanceArray[px * dim + py] || std::isnan(minDistanceArray[px * dim + py])) {
-            minDistanceArray[px * dim + py] = dxyz;
-            binArray[px * dim + py] = 0;
+	  areaArray[py * dim + px] = areaArray[py * dim + px] + pointArea/pixArea;
+          if (dxyz < minDistanceArray[py * dim + px] || std::isnan(minDistanceArray[py * dim + px])) {
+            minDistanceArray[py * dim + px] = dxyz;
+            binArray[py * dim + px] = 0;
             if (strchr(modestring, 'v') && hascolor) { // only create the color image when color is actually present and visual output active
-              outR[px][py] = col[i];
-              outG[px][py] = col[i + 1];
-              outB[px][py] = col[i + 2];
+              outR[py][px] = col[i];
+              outG[py][px] = col[i + 1];
+              outB[py][px] = col[i + 2];
             }
           }
         }
@@ -113,14 +113,15 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
      // WRITE OUTPUT IMAGES
       if (strchr(modestring, 'v') && hascolor) {
         strcpy(buffer, outfilepattern);
-        strcat(buffer, "_vis.tif");
-        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, buffer);
+        strcat(buffer, "_vis");
+        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, buffer);
       }
 	  
       if (strchr(modestring, 'b')) {
         strcpy(buffer, outfilepattern);
-        strcat(buffer, "_bin.tif");
-        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, buffer);
+        strcat(buffer, "_bin");
+        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, dim, buffer);
+	writeBinaryRaster((void *) binArray, buffer, dim,dim,1,"U8", "BSQ","# Data created by pcsky software https://github.com/dabasler/pcsky");
       }
 
       if (strchr(modestring, 'a')) { // Reusing binArray for area_bin output
@@ -133,22 +134,23 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
 			}
 		}
         strcpy(buffer, outfilepattern);
-        strcat(buffer, "_areabin.tif");
-        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, buffer);
+        strcat(buffer, "_areabin");
+        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, dim, buffer);
       }
 
       if (strchr(modestring, 'd')) {
-        colorizeArray(minDistanceArray, dim, 0.5, 50, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
+	writeBinaryRaster((void *) minDistanceArray, buffer, dim,dim,1,"F32", "BSQ","# Data created by pcsky software https://github.com/dabasler/pcsky");
+        colorizeArray(minDistanceArray, dim, dim, 0, 60, true, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
         strcpy(buffer, outfilepattern);
         strcat(buffer, "_dist.tif");
-        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, buffer);
+        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, buffer);
       }
 
       if (strchr(modestring, 'c')) {
-        colorizeArray(countArray, dim, 1, 500, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
+        colorizeArray(countArray, dim, dim, 0,500,false, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
         strcpy(buffer, outfilepattern);
         strcat(buffer, "_count.tif");
-        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, buffer);
+        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, buffer);
       }
 
     }
@@ -226,7 +228,7 @@ int main(int argc, char ** argv) {
   printf("\n**********************\n SVF from UAV Point Cloud \n**********************\n\n");
   printf("PARAMETERS\n");
   printf("input:  %s\n", infilenameBuffer);
-  printf("output: %s*.tif\n", outfilenameBuffer);
+  printf("output: %s_\n", outfilenameBuffer);
   printf("camera:  %f %f %f\n", cameraPositon[0], cameraPositon[1], cameraPositon[2]);
   printf("radius: %i\n", radius);
 

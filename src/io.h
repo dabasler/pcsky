@@ -37,10 +37,11 @@ bool print_ply_header(const char * filename);
 
 void getExtent(float * pos,uint32_t numVerts);
 /* output to tiff image */
-int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t dim, const char * filename);
+int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t width, uint32_t height, const char * filename);
 /* Colormapping functions to visualize differen data outputs  */
-void colorizeArray(float * data, int dim, float min, float max, uint8_t * outR, uint8_t * outG, uint8_t * outB);
+void colorizeArray(float * data, int dimX, int dimY, float min, float max,bool rev ,uint8_t * outR, uint8_t * outG, uint8_t * outB);
 
+void writeBinaryRaster( void * data,const char * filename, int ncol, int nrow, int nbands,const  char * datatype, const char * layout,const char* comment);
 
 
 // Magma colormap by Nathaniel J. Smith, Stefan van der Walt

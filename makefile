@@ -29,7 +29,7 @@ TESTDIR  = test
 SOURCES  := $(SRCDIR)/main.cpp $(SRCDIR)/miniply.cpp $(SRCDIR)/hemisphere.cpp $(SRCDIR)/io.cpp
 INCLUDES := $(wildcard $(SRCDIR)/*.h)
 OBJECTS  := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
-rm       = rm -f
+rm       = rm -rf
 
 
 $(BINDIR)/$(TARGET): $(OBJECTS)

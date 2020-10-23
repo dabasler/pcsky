@@ -31,7 +31,7 @@ if (!strcmp(argv[1],"-sector") || !strcmp(argv[1],"-all")){
 	  sectorArray = new uint8_t[dim * dim];
 	  defineSectors(sectorArray,n,dim);
 	  for (i=0;i<dim*dim;i++)sectorArray[i]=sectorArray[i]*10;
-	  tiffout((uint8_t * ) sectorArray, (uint8_t * )sectorArray, (uint8_t * ) sectorArray, dim, "sectors.tif");
+	  tiffout((uint8_t * ) sectorArray, (uint8_t * )sectorArray, (uint8_t * ) sectorArray, dim, dim, "sectors.tif");
 }
 if (!strcmp(argv[1],"-annulus") || !strcmp(argv[1],"-all")){
 
@@ -42,7 +42,7 @@ if (!strcmp(argv[1],"-annulus") || !strcmp(argv[1],"-all")){
 	  annuliArray = new uint8_t[dim * dim];
 	  defineAnnuli(annuliArray,n,dim);
 	  for (i=0;i<dim*dim;i++)annuliArray[i]=annuliArray[i]*5;
-	  tiffout((uint8_t * ) annuliArray, (uint8_t * ) annuliArray, (uint8_t * ) annuliArray, dim, "annuli.tif");
+	  tiffout((uint8_t * ) annuliArray, (uint8_t * ) annuliArray, (uint8_t * ) annuliArray, dim, dim, "annuli.tif");
 }
 
 
@@ -60,7 +60,7 @@ if (!strcmp(argv[1],"-sectorannulus") || !strcmp(argv[1],"-all")){
 	  defineAnnuli(annuliArray,na,dim);
 	  for (i=0;i<dim*dim;i++) sectorArray[i]=sectorArray[i]*10;
 	  for (i=0;i<dim*dim;i++)annuliArray[i]=annuliArray[i]*5;
-	  tiffout((uint8_t * ) annuliArray, (uint8_t * )sectorArray, (uint8_t * ) sectorArray, dim, "sectorsannulus.tif");
+	  tiffout((uint8_t * ) annuliArray, (uint8_t * )sectorArray, (uint8_t * ) sectorArray, dim, dim, "sectorsannulus.tif");
 }
 
 

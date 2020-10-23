@@ -2,6 +2,8 @@
 #include <cstring>
 #include <string>
 #include <cmath>
+#include <iostream>
+#include <fstream>
 #include <tiffio.h>
 #include "miniply.h"
 #include "io.h"
@@ -53,12 +55,15 @@ void getExtent(float * pos,uint32_t numVerts){
 
 /* -------------------------------------------------------------------------------- */
 /* output to tiff image */
-int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t dim,
+int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t width ,uint32_t height,
   const char * filename) {
+
+  char * newfilename = new char [256];
+  strcpy(newfilename, filename);
+  strcat(newfilename, ".tif");
   //printf("%s", filename);
-  uint32_t width = dim, height = dim;
   uint32_t tileWidth = 16, tileHeight = 16;
-  TIFF * tif = TIFFOpen(filename, "w");
+  TIFF * tif = TIFFOpen(newfilename, "w");
   int i, j, x;
   int px, py;
   int spp = 3;
@@ -78,15 +83,14 @@ int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t dim,
   for (j = 0; j < width; j += tileWidth) {
     for (i = 0; i < height; i += tileHeight) {
       for (x = 0; x < tilesize; x += spp) {
-        py = i + (x / spp) % tileWidth;
-        px = j + (x / spp) / tileWidth;
-        uint8 a = 255;
-        buf[x + 0] = Rband[py * height + px];
-        if (spp>1) buf[x + 1] = Gband[py * height + px];
-        if (spp>2) buf[x + 2] = Bband[py * height + px];
-        //if (spp>3) buf[x + 3] = 255; // ALPHA
+        px = j + (x / spp) % tileWidth;
+        py = i + (x / spp) / tileWidth;
+        buf[x + 0] = Rband[px * height + py];
+	buf[x + 1] = Gband[px * height + py];
+	buf[x + 2] = Bband[px * height + py];
+        //buf[x + 3] = 255; // ALPHA
       }
-      if (TIFFWriteTile(tif, buf, i, j, 0, 0) < 0) exit(-1);
+      if (TIFFWriteTile(tif, buf, j, i, 0, 0) < 0) exit(-1);
     }
   }
   free(buf);
@@ -96,7 +100,7 @@ int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t dim,
 
 /* --------------------------------------------------------   */
 /* Colormapping functions to visualize differen data outputs  */
-void colorizeArray(float * data, int dim, float min, float max, uint8_t * outR, uint8_t * outG, uint8_t * outB) {
+void colorizeArray(float * data, int dimX, int dimY, float min, float max, bool rev ,uint8_t * outR, uint8_t * outG, uint8_t * outB) {
   int i;
   float datamin = 1E+37;
   float datamax = -1E+37;
@@ -104,14 +108,14 @@ void colorizeArray(float * data, int dim, float min, float max, uint8_t * outR, 
   if (min < max) { // Use provided min max
     datamin = min;
     datamax = max;
-    for (i = 0; i < dim * dim; i++) {
+    for (i = 0; i < dimX * dimY; i++) {
       if (!std::isnan(data[i])) {
         if (data[i] < datamin) data[i] = datamin;
         if (data[i] > datamax) data[i] = datamax;
       }
     }
   } else { // Get min max from data
-    for (i = 0; i < dim * dim; i++) {
+    for (i = 0; i < dimX * dimY; i++) {
       if (!std::isnan(data[i])) {
         if (data[i] < datamin) datamin = data[i];
         if (data[i] > datamax) datamax = data[i];
@@ -121,14 +125,15 @@ void colorizeArray(float * data, int dim, float min, float max, uint8_t * outR, 
   printf("visualization data range: %f to %f\n", datamin, datamax);
   float range = datamax - datamin;
 
-  for (i = 0; i < dim * dim; i++) {
+  for (i = 0; i < dimX * dimY; i++) {
     if (std::isnan(data[i])){
 	outR[i]=0;
 	outG[i]=0;
 	outB[i]=0;
     }
     else {
-    nv = (uint8_t)(((data[i] - datamin) / range) * 253 + 1);
+    nv = (uint8_t)(((data[i] - datamin) / range) * 254 + 1);
+    if (rev) nv= 255 - nv+1;
     outR[i] = (uint8_t) (colormapMagma[nv][0]*255);
     outG[i] = (uint8_t) (colormapMagma[nv][1]*255);
     outB[i] = (uint8_t) (colormapMagma[nv][2]*255);
@@ -136,3 +141,31 @@ void colorizeArray(float * data, int dim, float min, float max, uint8_t * outR, 
   }
 }
 
+
+
+void writeBinaryRaster( void * data, const char * filename, int ncol, int nrow, int nbands, const char * datatype, const char* layout,const char* comment){
+  // dataype is one of  U8, U16, S8, S16, F32
+int nbytes=1;
+if (!strcmp(datatype,"U8") || !strcmp(datatype,"S8") ) nbytes=1;
+else if (!strcmp(datatype,"U16") || !strcmp(datatype,"S16") )nbytes=2;
+else if (!strcmp(datatype,"F32")) nbytes=4;
+  // layout BIP (2x2x3: RGB RGB RGB RGB),  BSQ (2x2x3: RRRR GGGG BBBB) , BIL (2x2x3: RRBBGG RRBBGG)
+  char * outfilename = new char[256];
+  // write header
+  int n;
+  char * header = new char[256];
+  n=sprintf (header, "NROWS %i\nNCOLS %i\nNBANDS %i\nNDATATYPE %s\nLAYOUT %s\n%s\n",ncol,nrow,nbands, datatype,layout,comment);
+  std::ofstream headerfile;
+  strcpy(outfilename,filename);
+  strcat(outfilename,".HDR");
+  headerfile.open (outfilename);
+  headerfile << header;
+  headerfile.close();
+  // write data
+  strcpy(outfilename,filename);
+  strcat(outfilename,".");
+  strcat(outfilename,layout);
+  std::ofstream datafile (outfilename, std::ios::out | std::ios::binary);
+  datafile.write ((char *) data, ncol*nrow*nbands*nbytes);
+  datafile.close();
+}
