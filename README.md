@@ -49,7 +49,7 @@ The arguments are
 * `[pointcloud.ply]` name of the input pointcloud
 * `b=[xmin,xamx,ymin,ymax,zmin,zmax]` bounding box (only points above camera Z position will be considered)
 * `c=[cellsize]` cellsize to summarize(in pc units)
-* [Axis] axis to remove. Accepted values are `X`, `Y` and `Z` (default).
+* `[Axis]` axis to project along. Accepted values are `X`, `Y` and `Z` (default).
 * `[outputfilepattern]` path and basename for the output files
 
 Example
