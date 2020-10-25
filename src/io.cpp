@@ -57,10 +57,8 @@ void getExtent(float * pos,uint32_t numVerts){
 /* output to tiff image */
 int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t width ,uint32_t height,
   const char * filename) {
-
   char * newfilename = new char [256];
-  strcpy(newfilename, filename);
-  strcat(newfilename, ".tif");
+  sprintf(newfilename,"%s.tif",filename);
   //printf("%s", filename);
   uint32_t tileWidth = 16, tileHeight = 16;
   TIFF * tif = TIFFOpen(newfilename, "w");
@@ -85,9 +83,9 @@ int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t width ,u
       for (x = 0; x < tilesize; x += spp) {
         px = j + (x / spp) % tileWidth;
         py = i + (x / spp) / tileWidth;
-        buf[x + 0] = Rband[px * height + py];
-	buf[x + 1] = Gband[px * height + py];
-	buf[x + 2] = Bband[px * height + py];
+        buf[x + 0] = Rband[py * width + px];
+	buf[x + 1] = Gband[py * width + px];
+	buf[x + 2] = Bband[py * width + px];
         //buf[x + 3] = 255; // ALPHA
       }
       if (TIFFWriteTile(tif, buf, j, i, 0, 0) < 0) exit(-1);
@@ -98,9 +96,12 @@ int tiffout(uint8_t * Rband, uint8_t * Gband, uint8_t * Bband, uint32_t width ,u
   return 0;
 }
 
+
+
 /* --------------------------------------------------------   */
 /* Colormapping functions to visualize differen data outputs  */
-void colorizeArray(float * data, int dimX, int dimY, float min, float max, bool rev ,uint8_t * outR, uint8_t * outG, uint8_t * outB) {
+void colorizeArray_float(float * data, int dimX, int dimY, float min, float max, bool rev ,uint8_t * outR, uint8_t * outG, uint8_t * outB) {
+
   int i;
   float datamin = 1E+37;
   float datamax = -1E+37;
@@ -124,23 +125,65 @@ void colorizeArray(float * data, int dimX, int dimY, float min, float max, bool 
   }
   printf("visualization data range: %f to %f\n", datamin, datamax);
   float range = datamax - datamin;
-
   for (i = 0; i < dimX * dimY; i++) {
     if (std::isnan(data[i])){
-	outR[i]=0;
-	outG[i]=0;
-	outB[i]=0;
+      outR[i]=0;
+      outG[i]=0;
+      outB[i]=0;
     }
     else {
-    nv = (uint8_t)(((data[i] - datamin) / range) * 254 + 1);
-    if (rev) nv= 255 - nv+1;
-    outR[i] = (uint8_t) (colormapMagma[nv][0]*255);
-    outG[i] = (uint8_t) (colormapMagma[nv][1]*255);
-    outB[i] = (uint8_t) (colormapMagma[nv][2]*255);
+      nv = (uint8_t)(((data[i] - datamin) / range) * 254 + 1);
+      if (rev) nv= 255 - nv+1;
+      outR[i] = (uint8_t) (colormapMagma[nv][0]*255);
+      outG[i] = (uint8_t) (colormapMagma[nv][1]*255);
+      outB[i] = (uint8_t) (colormapMagma[nv][2]*255);
     }
   }
 }
 
+/* --------------------------------------------------------   */
+/* Colormapping functions to visualize differen data outputs  */
+void colorizeArray_uint16(uint16_t * data, int dimX, int dimY, float min, float max, int naval , bool rev ,uint8_t * outR, uint8_t * outG, uint8_t * outB) {
+
+  int i;
+  int datamin = 2147483647;
+  int datamax = -2147483647;
+  int nv;
+  if (min < max) { // Use provided min max
+    datamin = min;
+    datamax = max;
+    for (i = 0; i < dimX * dimY; i++) {
+      if (data[i]!=naval) {
+        if (data[i] < datamin) data[i] = datamin;
+        if (data[i] > datamax) data[i] = datamax;
+      }
+    }
+  } else { // Get min max from data
+    for (i = 0; i < dimX * dimY; i++) {
+      if (data[i]!=naval) {
+        if (data[i] < datamin) datamin = data[i];
+        if (data[i] > datamax) datamax = data[i];
+      }
+    }
+  }
+  printf("visualization data range: %i to %i\n", datamin, datamax);
+  int range = datamax - datamin;
+  for (i = 0; i < dimX * dimY; i++) {
+    if (data[i]==naval){
+      outR[i]=0;
+      outG[i]=0;
+      outB[i]=0;
+    }
+    else {
+      
+      nv = (uint8_t)(((data[i] - datamin) / (float) range) * 254 + 1);
+      if (rev) nv= 255 - nv+1;
+      outR[i] = (uint8_t) (colormapMagma[nv][0]*255);
+      outG[i] = (uint8_t) (colormapMagma[nv][1]*255);
+      outB[i] = (uint8_t) (colormapMagma[nv][2]*255);
+    }
+  }
+}
 
 
 void writeBinaryRaster( void * data, const char * filename, int ncol, int nrow, int nbands, const char * datatype, const char* layout,const char* comment){

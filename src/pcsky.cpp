@@ -32,12 +32,12 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
   double dxyz;
   short dim = 2 * rmax;
   bool hascolor = false;
-  char * buffer = new char[256];
+  char * fname = new char[256];
   // initialize output data arrays
   uint8_t * binArray; // Binary Image (0/255)
   binArray = new uint8_t[dim * dim];
-  float * countArray;
-  countArray = new float[dim * dim];
+  uint16_t * countArray;
+  countArray = new uint16_t[dim * dim];
   float * minDistanceArray;
   minDistanceArray = new float[dim * dim];
   uint8_t outR[dim][dim];
@@ -54,13 +54,12 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
       minDistanceArray[j * dim + i] = NAN;
       if (((i - rmax) * (i - rmax) + (j - rmax) * (j - rmax)) <= (rmax * rmax)) {
         binArray[j * dim + i] = 255;
-		areaArray[j * dim + i] = 0;
+	areaArray[j * dim + i] = 0;
         outR[j][i] = 230;
         outG[j][i] = 230;
         outB[j][i] = 240;
       } else {
-        countArray[j * dim + i] = NAN;
-		areaArray[j * dim + i] = NAN;
+	areaArray[j * dim + i] = NAN;
         binArray[j * dim + i] = 0;
         outR[j][i] = 0;
         outG[j][i] = 0;
@@ -112,16 +111,14 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
 
      // WRITE OUTPUT IMAGES
       if (strchr(modestring, 'v') && hascolor) {
-        strcpy(buffer, outfilepattern);
-        strcat(buffer, "_vis");
-        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, buffer);
+	sprintf(fname,"%s_vis",outfilepattern);
+        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, fname);
       }
 	  
       if (strchr(modestring, 'b')) {
-        strcpy(buffer, outfilepattern);
-        strcat(buffer, "_bin");
-        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, dim, buffer);
-	writeBinaryRaster((void *) binArray, buffer, dim,dim,1,"U8", "BSQ","# Data created by pcsky software https://github.com/dabasler/pcsky");
+	sprintf(fname,"%s_bin",outfilepattern);
+        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, dim, fname);
+	writeBinaryRaster((void *) binArray, fname, dim,dim,1,"U8", "BSQ","# Data created by pcsky software https://github.com/dabasler/pcsky");
       }
 
       if (strchr(modestring, 'a')) { // Reusing binArray for area_bin output
@@ -133,24 +130,21 @@ void hemispherical_transform(const char * filename, float * cameraPositon, int r
 				else binArray[i]= 255;
 			}
 		}
-        strcpy(buffer, outfilepattern);
-        strcat(buffer, "_areabin");
-        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, dim, buffer);
+	sprintf(fname,"%s_areabin",outfilepattern);
+        tiffout((uint8_t * ) binArray, (uint8_t * ) binArray, (uint8_t * ) binArray, dim, dim, fname);
       }
 
       if (strchr(modestring, 'd')) {
-	writeBinaryRaster((void *) minDistanceArray, buffer, dim,dim,1,"F32", "BSQ","# Data created by pcsky software https://github.com/dabasler/pcsky");
-        colorizeArray(minDistanceArray, dim, dim, 0, 60, true, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
-        strcpy(buffer, outfilepattern);
-        strcat(buffer, "_dist.tif");
-        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, buffer);
+	sprintf(fname,"%s_dist",outfilepattern);
+	writeBinaryRaster((void *) minDistanceArray, fname, dim,dim,1,"F32", "BSQ","# Data created by pcsky software https://github.com/dabasler/pcsky");
+        colorizeArray_float(minDistanceArray, dim, dim, 0, 60, true, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
+        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, fname);
       }
 
       if (strchr(modestring, 'c')) {
-        colorizeArray(countArray, dim, dim, 0,500,false, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
-        strcpy(buffer, outfilepattern);
-        strcat(buffer, "_count.tif");
-        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, buffer);
+	sprintf(fname,"%s_count",outfilepattern);
+        colorizeArray_uint16(countArray, dim, dim, 0,500,0,false, (uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB);
+        tiffout((uint8_t * ) outR, (uint8_t * ) outG, (uint8_t * ) outB, dim, dim, fname);
       }
 
     }
@@ -178,7 +172,7 @@ int main(int argc, char ** argv) {
   char * infilenameBuffer = new char[256];
   char * outfilenameBuffer = new char[256];
   char * modestring = new char[20];
-  char * buffer = new char[64];
+  char * stringbuffer = new char[64];
   float cameraPositon[3];
   int radius;
   char * token;
@@ -194,16 +188,16 @@ int main(int argc, char ** argv) {
       strcpy(infilenameBuffer, argv[i]);
       reqparameter[0] = true;
     } else {
-      strcpy(buffer, argv[i]);
-      buffer[2] = '\0';
-      if (!strcmp(buffer, "r=")) {
-        strcpy(buffer, argv[i] + 2); // RADIUS
-        radius = atoi(buffer);
+      strcpy(stringbuffer, argv[i]);
+      stringbuffer[2] = '\0';
+      if (!strcmp(stringbuffer, "r=")) {
+        strcpy(stringbuffer, argv[i] + 2); // RADIUS
+        radius = atoi(stringbuffer);
         reqparameter[1] = true;
-      } else if (!strcmp(buffer, "c=")) {
-        strcpy(buffer, argv[i] + 2); // CAMERA
+      } else if (!strcmp(stringbuffer, "c=")) {
+        strcpy(stringbuffer, argv[i] + 2); // CAMERA
         j = 0;
-        token = strtok(buffer, ",");
+        token = strtok(stringbuffer, ",");
         while (token != NULL && j < 4) {
           cameraPositon[j] = atof(token);
           token = strtok(NULL, ",");
@@ -211,13 +205,13 @@ int main(int argc, char ** argv) {
         }
         reqparameter[2] = true;
       }
-      /*	else if (!strcmp(buffer,"--")) {
-      			strcpy(buffer,argv[i]+1);// mode
-      			if (!strcmp(buffer,"all"))  strcat(modestring,"vbdc");
-      			if (!strcmp(buffer,"vis"))  strcat(modestring,"v");
-      			if (!strcmp(buffer,"bin"))  strcat(modestring,"b");
-      			if (!strcmp(buffer,"dist")) strcat(modestring,"d");
-      			if (!strcmp(buffer,"bin"))  strcat(modestring,"c");
+      /*	else if (!strcmp(stringbuffer,"--")) {
+      			strcpy(stringbuffer,argv[i]+1);// mode
+      			if (!strcmp(stringbuffer,"all"))  strcat(modestring,"vbdc");
+      			if (!strcmp(stringbuffer,"vis"))  strcat(modestring,"v");
+      			if (!strcmp(stringbuffer,"bin"))  strcat(modestring,"b");
+      			if (!strcmp(stringbuffer,"dist")) strcat(modestring,"d");
+      			if (!strcmp(stringbuffer,"bin"))  strcat(modestring,"c");
       		} */
       else {
         strcpy(outfilenameBuffer, argv[i]);

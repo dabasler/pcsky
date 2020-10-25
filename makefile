@@ -9,7 +9,8 @@
 # ------------------------------------------------
 
 # project name
-TARGET   = pcsky
+TARGET_SKY   = pcsky
+TARGET_RASTER   = pcrasterize
 
 CC       = g++
 # compiling flags here
@@ -26,16 +27,24 @@ OBJDIR   = obj
 BINDIR   = bin
 TESTDIR  = test
 
-SOURCES  := $(SRCDIR)/main.cpp $(SRCDIR)/miniply.cpp $(SRCDIR)/hemisphere.cpp $(SRCDIR)/io.cpp
+SOURCES  := $(SRCDIR)/pcsky.cpp $(SRCDIR)/pcrasterize.cpp  $(SRCDIR)/miniply.cpp $(SRCDIR)/hemisphere.cpp $(SRCDIR)/io.cpp
 INCLUDES := $(wildcard $(SRCDIR)/*.h)
 OBJECTS  := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+OBJECTS_SKY    := $(OBJDIR)/pcsky.o  $(OBJDIR)/miniply.o $(OBJDIR)/hemisphere.o $(OBJDIR)/io.o
+OBJECTS_RASTER := $(OBJDIR)/pcrasterize.o  $(OBJDIR)/miniply.o $(OBJDIR)/io.o
 rm       = rm -rf
 
+all: $(BINDIR)/$(TARGET_SKY) $(BINDIR)/$(TARGET_RASTER)
 
-$(BINDIR)/$(TARGET): $(OBJECTS)
+$(BINDIR)/$(TARGET_SKY): $(OBJECTS_SKY)
 	@mkdir -p $(@D)
-	@$(LINKER) $(OBJECTS) $(LFLAGS) -o $@
-	@echo "Linking complete!"
+	@$(LINKER) $(OBJECTS_SKY) $(LFLAGS) -o $@
+	@echo "Linking pcsky complete!"
+
+$(BINDIR)/$(TARGET_RASTER): $(OBJECTS_RASTER)
+	@mkdir -p $(@D)
+	@$(LINKER) $(OBJECTS_RASTER) $(LFLAGS) -o $@
+	@echo "Linking pcrasterize complete!"
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp 
 	@mkdir -p $(@D)
@@ -48,7 +57,8 @@ clean:
 	@echo "Cleanup complete!"
 .PHONY: remove
 remove: clean
-	@$(rm) $(BINDIR)/$(TARGET)
+	@$(rm) $(BINDIR)/$(TARGET_SKY)
+	@$(rm) $(BINDIR)/$(TARGET_RASTER)
 	@$(rm) $(TESTDIR)/tests
 	@echo "Executable removed!"
 
