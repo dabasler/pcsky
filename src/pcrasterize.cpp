@@ -10,7 +10,7 @@
 
 /* -----------------------------------------------------------------   */
 /* Rasterize pointcloud by flattening one dimension */
-void rasterize_pointcloud(const char * filename, float * bbox, double pixsize,  const char * outfilepattern,    const char * modestring) {
+void rasterize_pointcloud(const char * filename, float * bbox, double pixsize,  const char * outfilepattern,    const char * modestring , const char * axis) {
   printf("Extracting points\n\n");
   miniply::PLYReader reader(filename);
   if (!reader.valid()) {
@@ -28,8 +28,19 @@ void rasterize_pointcloud(const char * filename, float * bbox, double pixsize,  
   //bbox Xmin,  Xmax,  Ymin,  Ymax, Zmin, Zmax
   //       0      1     2      3     4     5
   int dim[2];
+ if (!strcmp (axis,"X")) { // reduce Y plot X vs Z
+  dim[0] = (int) ceil((bbox[1]-bbox[0])/pixsize);
+  dim[1] = (int) ceil((bbox[5]-bbox[4])/pixsize);
+}
+ else if (!strcmp (axis,"Y")) { // reduce Y plot X vs Z
+  dim[0] = (int) ceil((bbox[3]-bbox[2])/pixsize);
+  dim[1] = (int) ceil((bbox[5]-bbox[4])/pixsize);
+}
+ else{
   dim[0] = (int) ceil((bbox[1]-bbox[0])/pixsize);
   dim[1] = (int) ceil((bbox[3]-bbox[2])/pixsize);
+ }
+
   printf("Output: %i x %i pixels\n",dim[0],dim[1]);
   if (dim[0]>5000 ||dim[1]>5000 ){
     printf("TOO BIG\n");
@@ -80,9 +91,19 @@ void rasterize_pointcloud(const char * filename, float * bbox, double pixsize,  
 	ix=i;
 	iy=i+1;
 	iz=i+2;
-	if (pos[ix] >= bbox[0] && pos[ix] <= bbox[1] && pos[iy] >= bbox[2] && pos[iy] <= bbox[3]  &&  pos[iz] >= bbox[4] && pos[iz] <= bbox[5]) {   
-	  px = (int) ((pos[ix]-bbox[0])/ pixsize);
-	  py = (int) -((pos[iy]-bbox[3])/ pixsize); // images are filled from top
+	if (pos[i] >= bbox[0] && pos[i] <= bbox[1] && pos[i+1] >= bbox[2] && pos[i+1] <= bbox[3]  &&  pos[i+2] >= bbox[4] && pos[i+2] <= bbox[5]) {  
+ 	  if (!strcmp (axis,"Y")) { // reduce Y plot X vs Z
+	    px = (int) ((pos[ix]-bbox[0])/ pixsize);
+	    py = (int) -((pos[iz]-bbox[5])/ pixsize); // images are filled from top
+ 	  }
+ 	  else if (!strcmp (axis,"X")){ // reduce X plot Y vs Z
+	    px = (int) ((pos[iy]-bbox[2])/ pixsize); 
+	    py = (int) -((pos[iz]-bbox[5])/ pixsize); // images are filled from top
+	  }
+	  else{  // reduce Z plot X vs Y
+	    px = (int) ((pos[ix]-bbox[0])/ pixsize);
+	    py = (int) -((pos[iy]-bbox[3])/ pixsize); // images are filled from top
+	  }
           countArray[py * dim[0] + px] = countArray[py * dim[0] + px] + 1;
 
            //printf("%0.1f/%0.1f->%f/%f ->%i/ %i: %i-%i-%i \n",pos[ix],pos[iy],pos[ix]-bbox[0],pos[iy]-bbox[2],px, py,col[i],col[i+1],col[i+2]);
@@ -187,6 +208,7 @@ return 0;
   char * outfilenamefname = new char[256];
   char * modestring = new char[20];
   char * fname = new char[64];
+  char * axis = new char[3];
   float bbox[6];
   float csize;
   char * token;
@@ -197,11 +219,15 @@ return 0;
     false
   };
   strcpy(modestring, "vbdca");
+  strcpy(axis,"Z");
   for (i = 0; i < argc; i++) {
     if (has_extension(argv[i], "ply")) {
       strcpy(infilenamefname, argv[i]);
       reqparameter[0] = true;
     } else {
+
+      if (!strcmp(argv[i], "X") || !strcmp(argv[i], "Y") || !strcmp(argv[i], "Z")) strcpy(axis, argv[i]);
+      else{
       strcpy(fname, argv[i]);
       fname[2] = '\0';
       if (!strcmp(fname, "c=")) {
@@ -219,6 +245,7 @@ return 0;
         }
         reqparameter[2] = true;
       }
+
       /*	else if (!strcmp(fname,"--")) {
       			strcpy(fname,argv[i]+1);// mode
       			if (!strcmp(fname,"all"))  strcat(modestring,"vbdc");
@@ -231,6 +258,7 @@ return 0;
         strcpy(outfilenamefname, argv[i]);
         reqparameter[3] = true;
       }
+     }
     }
   }
   printf("\n**********************\n Rasterize Point Cloud \n**********************\n\n");
@@ -239,6 +267,7 @@ return 0;
   printf("output: %s*.tif\n", outfilenamefname);
   printf("bbox:  X%f %f Y%f %f Z%f %f\n", bbox[0],bbox[1],bbox[2],bbox[3],bbox[4],bbox[5]);
   printf("cellsize: %f\n", csize);
+  printf("axis: %s\n", axis);
 
   if (!reqparameter[0]) {
     fprintf(stderr, "No input files provided.\n");
@@ -248,7 +277,7 @@ return 0;
     printf("FILE:%s\n", infilenamefname);
     print_ply_header(infilenamefname);
     printf("**********************\n\n");
-    rasterize_pointcloud(infilenamefname, bbox, csize, outfilenamefname, modestring);
+    rasterize_pointcloud(infilenamefname, bbox, csize, outfilenamefname, modestring,axis);
     return 1;
   }
 }
